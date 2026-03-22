@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Envelope Budget App</title>
+<style>
+body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f7f7f7; }
+header { text-align:center; padding:1rem; background:#4CAF50; color:white; font-size:1.5rem; }
+#totalBalance { text-align:center; font-size:1.2rem; padding:0.5rem; }
+#envelopes { display:flex; flex-wrap:wrap; justify-content:center; padding:1rem; gap:10px; }
+.envelope { background:#fff; border-radius:10px; padding:20px; width:120px; text-align:center;
+box-shadow:0 4px 6px rgba(0,0,0,0.1); cursor:pointer; }
+.envelope h3 { margin:0 0 5px 0; word-break:break-word; }
+.envelope p { margin:0; font-weight:bold; }
+#modal { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5);
+display:none; justify-content:center; align-items:center; }
+#modalContent { background:white; padding:20px; border-radius:10px; width:90%; max-width:400px; }
+#modalContent input[type="text"], #modalContent input[type="number"] { width:100%; padding:8px; margin:5px 0; box-sizing:border-box; }
+#history { max-height:200px; overflow-y:auto; margin-top:10px; border-top:1px solid #ddd; padding-top:10px; }
+button { margin:5px 0; padding:10px; width:100%; font-size:1rem; }
+</style>
+</head>
+<body>
+
+<header>Envelope Budget App</header>
+<div id="totalBalance">$0.00 Total</div>
+
+<div id="envelopes"></div>
+<button onclick="addEnvelope()">+ Add Envelope</button>
+
+<div id="modal">
+<div id="modalContent">
+<input type="text" id="nameInput" placeholder="Envelope Name" />
+<p>Balance: $<span id="modalBalance">0.00</span></p>
+<input type="number" id="amountInput" placeholder="Amount" />
+<button onclick="addMoney()">Add Money</button>
+<button onclick="spendMoney()">Spend Money</button>
+<div id="history"></div>
+<button onclick="closeModal()">Close</button>
+</div>
+</div>
+
+<script>
+let envelopes = JSON.parse(localStorage.getItem('envelopes')) || [];
+let currentEnvelopeIndex = null;
+
+function save() {
+localStorage.setItem('envelopes', JSON.stringify(envelopes));
+}
+
+function getTotalBalance() {
+return envelopes.reduce((sum, env) => sum + env.balance, 0);
+}
+
+function renderEnvelopes() {
+const container = document.getElementById('envelopes');
+container.innerHTML = '';
+envelopes.forEach((env, index) => {
+const div = document.createElement('div');
+div.className = 'envelope';
+div.innerHTML = `<h3>${env.name}</h3><p>$${env.balance.toFixed(2)}</p>`;
+div.onclick = () => openModal(index);
+container.appendChild(div);
+});
+document.getElementById('totalBalance').innerText = `$${getTotalBalance().toFixed(2)} Total`;
+}
+
+function addEnvelope() {
+const name = prompt("Enter envelope name:");
+if(name) {
+envelopes.push({name, balance:0, history:[]});
+save();
+renderEnvelopes();
+}
+}
+
+function openModal(index) {
+currentEnvelopeIndex = index;
+const env = envelopes[index];
+document.getElementById('nameInput').value = env.name;
+document.getElementById('amountInput').value = '';
+document.getElementById('modalBalance').innerText = env.balance.toFixed(2);
+renderHistory();
+document.getElementById('modal').style.display = 'flex';
+}
+
+function closeModal() {
+document.getElementById('modal').style.display = 'none';
+save();
+renderEnvelopes();
+}
+
+function renderHistory() {
+const env = envelopes[currentEnvelopeIndex];
+const historyDiv = document.getElementById('history');
+if(env.history.length === 0) {
+historyDiv.innerHTML = '<p>No transactions yet.</p>';
+} else {
+// Show newest first
+historyDiv.innerHTML = env.history.slice().reverse().map(h =>
+`<p>${h.date} - ${h.type} $${h.amount.toFixed(2)} (Balance: $${h.balance.toFixed(2)})</p>`
+).join('');
+}
+}
+
+function addMoney() {
+const amount = parseFloat(document.getElementById('amountInput').value);
+if(isNaN(amount) || amount <= 0) return alert('Enter a valid amount');
+const env = envelopes[currentEnvelopeIndex];
+env.balance += amount;
+env.history.push({type:'+', amount, date:new Date().toLocaleDateString(), balance:env.balance});
+document.getElementById('modalBalance').innerText = env.balance.toFixed(2);
+save();
+renderEnvelopes();
+renderHistory();
+}
+
+function spendMoney() {
+const amount = parseFloat(document.getElementById('amountInput').value);
+if(isNaN(amount) || amount <= 0) return alert('Enter a valid amount');
+const env = envelopes[currentEnvelopeIndex];
+if(amount > env.balance) return alert('Not enough balance!');
+env.balance -= amount;
+env.history.push({type:'-', amount, date:new Date().toLocaleDateString(), balance:env.balance});
+document.getElementById('modalBalance').innerText = env.balance.toFixed(2);
+save();
+renderEnvelopes();
+renderHistory();
+}
+
+// Edit envelope name live
+document.getElementById('nameInput').addEventListener('input', function() {
+const env = envelopes[currentEnvelopeIndex];
+env.name = this.value || 'Unnamed';
+save();
+renderEnvelopes();
+});
+
+// Initial render
+renderEnvelopes();
+</script>
+
+</body>
+</html>
